@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { createClient } from "@supabase/supabase-js";
+import { Br, Cut, Line, Printer, Text, Row, render } from 'react-thermal-printer';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "",
@@ -14,38 +15,75 @@ export default function Home() {
   const [phoneNumber, setPhoneNumber] = useState<string>("");
   const [price, setPrice] = useState<string>("");
 
-  async function handleSubmit({ fullName, deviceType, problem, phoneNumber, price }: { fullName: string; deviceType: string; problem: string; phoneNumber: string; price: string }) {
-    console.log({ fullName, deviceType, problem, phoneNumber, price });
+async function handleSubmit({ fullName, deviceType, problem, phoneNumber, price }: { 
+  fullName: string; 
+  deviceType: string; 
+  problem: string; 
+  phoneNumber: string; 
+  price: string 
+}) {
+  try {
+    // 1. Save to Supabase
+    const { error } = await supabase.from("services").insert([
+      { fullName, deviceType, problem, phoneNumber, price, isReady: false },
+    ]);
+    if (error) throw error;
 
-    try {
-      const { error } = await supabase.from("services").insert([
-        {
-          fullName,
-          deviceType,
-          problem,
-          phoneNumber,
-          price: price,
-          isReady: false,
-        },
-      ]);
+    alert("Service request submitted successfully!");
 
-      if (error) {
-        throw error;
+    // 2. Prepare the Receipt
+    const receipt = (
+      <Printer type="epson" width={42} characterSet="korea">
+        <Text size={{ width: 2, height: 2 }} align="center">CMS-Debar</Text>
+        <Text bold={true} align="center">Service Receipt</Text>
+        <Br />
+        <Line />
+        <Row left="Customer" right={fullName} />
+        <Row left="Device" right={deviceType} />
+        <Row left="Problem" right={problem} />
+        <Row left="Phone" right={phoneNumber} />
+        <Row left="Price" right={`${price} DEN`} />
+        <Line />
+        <Br />
+        <Text align="center">Thank you for your business!</Text>
+        <Br />
+        <Text align="center">Status: Pending</Text>
+        <Cut />
+      </Printer>
+    );
+
+    // 3. Render to Binary Data
+    const data = await render(receipt);
+
+    // 4. Send to Printer (Web Serial Example)
+    if ("serial" in navigator) {
+      try {
+        const port = await (navigator).serial.requestPort();
+        await port.open({ baudRate: 9600 });
+        const writer = port.writable.getWriter();
+        await writer.write(data);
+        writer.releaseLock();
+        await port.close();
+      } catch (err) {
+        console.error("Printer connection failed:", err);
+        alert("Could not connect to printer. Check USB connection.");
       }
-
-      alert("Service request submitted successfully!");
-
-       setFullName("");
-      setDeviceType("Mob");
-      setProblem("");
-      setPhoneNumber("");
-      setPrice("");
+    } else {
+      alert("Your browser does not support Web Serial printing. Use Chrome or Edge.");
     }
-    catch (error) {
-      console.error("Error submitting service request:", error);
-      alert("Failed to submit service request.");
-    }
+
+    // 5. Clear Form
+    setFullName("");
+    setDeviceType("Mob");
+    setProblem("");
+    setPhoneNumber("");
+    setPrice("");
+
+  } catch (error) {
+    console.error("Error submitting service request:", error);
+    alert("Failed to submit service request.");
   }
+}
   
 
   return (
