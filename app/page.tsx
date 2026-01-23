@@ -54,13 +54,11 @@ export default function Home() {
       alert("Service request submitted successfully!");
 
       try {
-        // CHANGE: Use window.qz instead of qz
         if (!window.qz.websocket.isActive()) {
           await window.qz.websocket.connect();
         }
 
-        // Find your Tysso printer (replace with your actual printer name)
-        const printerName = "Tysso PRP-300"; // Check exact name in Windows Printers
+        const printerName = "Tysso Thermal Receipt Printer (Copy 1)"; 
 
         // Create ESC/POS commands for thermal receipt
         const receiptData = [
