@@ -1,11 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { Br, Cut, Line, Printer, Text, Row, render } from 'react-thermal-printer';
+// Remove this line: import qz from 'qz-tray';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
 );
 
 export default function Home() {
@@ -15,78 +15,102 @@ export default function Home() {
   const [phoneNumber, setPhoneNumber] = useState<string>("");
   const [price, setPrice] = useState<string>("");
 
-async function handleSubmit({ fullName, deviceType, problem, phoneNumber, price }: { 
-  fullName: string; 
-  deviceType: string; 
-  problem: string; 
-  phoneNumber: string; 
-  price: string 
-}) {
-  try {
-    // 1. Save to Supabase
-    const { error } = await supabase.from("services").insert([
-      { fullName, deviceType, problem, phoneNumber, price, isReady: false },
-    ]);
-    if (error) throw error;
+  // ADD THIS: Load QZ Tray via CDN
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/qz-tray@2.2.2/qz-tray.min.js";
+    script.async = true;
+    document.body.appendChild(script);
 
-    alert("Service request submitted successfully!");
-
-    // 2. Prepare the Receipt
-    const receipt = (
-      <Printer type="epson" width={42} characterSet="korea">
-        <Text size={{ width: 2, height: 2 }} align="center">CMS-Debar</Text>
-        <Text bold={true} align="center">Service Receipt</Text>
-        <Br />
-        <Line />
-        <Row left="Customer" right={fullName} />
-        <Row left="Device" right={deviceType} />
-        <Row left="Problem" right={problem} />
-        <Row left="Phone" right={phoneNumber} />
-        <Row left="Price" right={`${price} DEN`} />
-        <Line />
-        <Br />
-        <Text align="center">Thank you for your business!</Text>
-        <Br />
-        <Text align="center">Status: Pending</Text>
-        <Cut />
-      </Printer>
-    );
-
-    // 3. Render to Binary Data
-    const data = await render(receipt);
-
-    // 4. Send to Printer (Web Serial Example)
-    if ("serial" in navigator) {
-      try {
-        const port = await (navigator).serial.requestPort();
-        await port.open({ baudRate: 9600 });
-        const writer = port.writable.getWriter();
-        await writer.write(data);
-        writer.releaseLock();
-        await port.close();
-      } catch (err) {
-        console.error("Printer connection failed:", err);
-        alert("Could not connect to printer. Check USB connection.");
+    return () => {
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
       }
-    } else {
-      alert("Your browser does not support Web Serial printing. Use Chrome or Edge.");
+    };
+  }, []);
+
+  async function handleSubmit({
+    fullName,
+    deviceType,
+    problem,
+    phoneNumber,
+    price,
+  }: {
+    fullName: string;
+    deviceType: string;
+    problem: string;
+    phoneNumber: string;
+    price: string;
+  }) {
+    try {
+      // 1. Save to Supabase
+      const { error } = await supabase
+        .from("services")
+        .insert([
+          { fullName, deviceType, problem, phoneNumber, price, isReady: false },
+        ]);
+
+      if (error) throw error;
+      alert("Service request submitted successfully!");
+
+      try {
+        // CHANGE: Use window.qz instead of qz
+        if (!window.qz.websocket.isActive()) {
+          await window.qz.websocket.connect();
+        }
+
+        // Find your Tysso printer (replace with your actual printer name)
+        const printerName = "Tysso PRP-300"; // Check exact name in Windows Printers
+
+        // Create ESC/POS commands for thermal receipt
+        const receiptData = [
+          "\x1B\x40", // Initialize printer
+          "\x1B\x61\x01", // Center align
+          "\x1B\x21\x30", // Double size
+          "CMS-Debar\n",
+          "\x1B\x21\x00", // Normal size
+          "Service Receipt\n",
+          "\n",
+          "--------------------------------\n",
+          "\x1B\x61\x00", // Left align
+          `Customer: ${fullName}\n`,
+          `Device: ${deviceType}\n`,
+          `Problem: ${problem}\n`,
+          `Phone: ${phoneNumber}\n`,
+          `Price: ${price} EUR\n`,
+          "--------------------------------\n",
+          "\x1B\x61\x01", // Center align
+          "Thank you for your business!\n",
+          "Status: Pending\n",
+          "\n\n\n",
+          "\x1D\x56\x00", // Cut paper
+        ];
+
+        // CHANGE: Use window.qz instead of qz
+        const config = window.qz.configs.create(printerName);
+        await window.qz.print(config, receiptData);
+
+        alert("Receipt printed successfully!");
+      } catch (error) {
+        console.error("Printing error:", error);
+        alert("Failed to print. Make sure QZ Tray is running.");
+      } finally {
+      }
+
+      // 5. Clear Form
+      setFullName("");
+      setDeviceType("Mob");
+      setProblem("");
+      setPhoneNumber("");
+      setPrice("");
+    } catch (error) {
+      console.error("Error submitting service request:", error);
+      alert("Failed to submit service request.");
     }
-
-    // 5. Clear Form
-    setFullName("");
-    setDeviceType("Mob");
-    setProblem("");
-    setPhoneNumber("");
-    setPrice("");
-
-  } catch (error) {
-    console.error("Error submitting service request:", error);
-    alert("Failed to submit service request.");
   }
-}
-  
 
   return (
+    <div>
       <div className="mt-10 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
         <div className="sm:col-span-3">
           <label
@@ -190,11 +214,49 @@ async function handleSubmit({ fullName, deviceType, problem, phoneNumber, price 
           <button
             type="submit"
             className="rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
-            onClick={() => handleSubmit({ fullName, deviceType, problem, phoneNumber, price })}
+            onClick={() =>
+              handleSubmit({
+                fullName,
+                deviceType,
+                problem,
+                phoneNumber,
+                price,
+              })
+            }
           >
             Save
           </button>
         </div>
       </div>
+      <table className="table-fixed">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Name</th>
+            <th>Sort</th>
+            <th>Problem</th>
+            <th>Mob</th>
+            <th>Price</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>The Sliding Mr. Bones (Next Stop, Pottersville)</td>
+            <td>Malcolm Lockyer</td>
+            <td>1961</td>
+          </tr>
+          <tr>
+            <td>Witchy Woman</td>
+            <td>The Eagles</td>
+            <td>1972</td>
+          </tr>
+          <tr>
+            <td>Shining Star</td>
+            <td>Earth, Wind, and Fire</td>
+            <td>1975</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   );
 }
