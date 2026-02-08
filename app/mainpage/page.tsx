@@ -429,7 +429,7 @@ export default function MainPage() {
                             >
                               Is Ready
                             </label>
-                              <select
+                            <select
                               id="deviceType"
                               name="deviceType"
                               value={deviceType} // Controlled component
@@ -448,7 +448,7 @@ export default function MainPage() {
                             >
                               User
                             </label>
-                             <select
+                            <select
                               id="deviceType"
                               name="deviceType"
                               value={deviceType} // Controlled component
@@ -458,8 +458,6 @@ export default function MainPage() {
                               <option value="Mob">Tani</option>
                               <option value="Tablet">Duli</option>
                               <option value="Tablet">Jusuf</option>
-
-                              
                             </select>
                           </div>
                         </div>
