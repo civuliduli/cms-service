@@ -3,10 +3,7 @@ import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { format, parseISO } from "date-fns";
 
-// TODO: install shadcn for modals
-// TODO: When double click open modal
-// TODO: Update specific service 
-
+// TODO: Update specific service
 
 import {
   Table,
@@ -16,7 +13,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "",
@@ -29,11 +35,14 @@ export default function MainPage() {
   const [problem, setProblem] = useState<string>("");
   const [phoneNumber, setPhoneNumber] = useState<string>("");
   const [price, setPrice] = useState<string>("");
+  const [isReady, setIsReady] = useState<boolean>(false);
+  const [parts, setParts] = useState<number>(0);
+  const [partsOrigin, setPartsOrigin] = useState<string>("");
+  const [user, setUser] = useState<string>("");
   const [searchWord, setSearchWord] = useState<string>("");
-
-    const [openDialogRow, setOpenDialogRow] = useState<ServicesModel | null>(null);
-
-
+  const [openDialogRow, setOpenDialogRow] = useState<ServicesModel | null>(
+    null,
+  );
   const [services, setServices] = useState<ServicesModel[]>([]);
 
   // ADD THIS: Load QZ Tray via CDN
@@ -69,8 +78,6 @@ export default function MainPage() {
     loadServices();
   }, []);
 
-  // 2. Create a derived variable for the filtered results
-  // This recalculates automatically whenever services or searchWord changes
   const filteredServices = services.filter((item) => {
     const query = searchWord.toLowerCase();
     return (
@@ -113,7 +120,7 @@ export default function MainPage() {
         ]);
 
       if (error) throw error;
-        await loadServices();
+      await loadServices();
 
       alert("Service request submitted successfully!");
 
@@ -133,21 +140,20 @@ export default function MainPage() {
           "\x1B\x21\x00", // Normal size
           "Computer & Mobile Service\n",
           "+389 70 402 386\n",
+          `${format(new Date(), "dd-MMM-yy")}\t${format(new Date(), "HH:mm:ss")}`,
+          "----------------------------- \n",
+          "\x1B\x61\x00",
+          `Emri/Ime: ${fullName}\n`,
+          `${deviceType}: ${problem}\n`,
           "\n",
           "\n",
-          "--------------------------------\n",
-          "\x1B\x61\x00", 
-          `Customer: ${fullName}\n`,
-          `Device: ${deviceType}\n`,
-          `Problem: ${problem}\n`,
-          `Phone: ${phoneNumber}\n`,
-          `Price: ${price} EUR\n`,
-          "--------------------------------\n",
-          "\x1B\x61\x01", 
-          "Thank you for your business!\n",
-          "Status: Pending\n",
-          "\n\n\n",
-          "\x1D\x56\x00", 
+          `Tel: ${phoneNumber} \t Çmimi/Cena: ${price}\n`,
+          "------------------------------------------------\n",
+          "\x1B\x61\x01",
+          "Për servisimin do informoheni me SMS\n",
+          "Za servisot ke bidete izvesteni so SMS\n",
+          "Ju Faleminderit \t Vi Blagodarime\n",
+          "\x1D\x56\x00",
         ];
 
         const config = window.qz.configs.create(printerName);
@@ -264,7 +270,7 @@ export default function MainPage() {
             <input
               id="phoneNumber"
               name="phoneNumber"
-              type="number"
+              type="text"
               value={phoneNumber || ""}
               onChange={(e) => setPhoneNumber(e.target.value)}
               className="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-black outline-1 -outline-offset-1 outline-gray/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm/6"
@@ -314,72 +320,160 @@ export default function MainPage() {
           <div className="border rounded-lg overflow-hidden">
             <div className="overflow-auto max-h-[350px]">
               <div>
-              <Table>
-                <TableHeader className="sticky top-0 z-10">
-                  <TableRow>
-                    <TableHead className="bg-gray-900 text-amber-50">
-                      Date
-                    </TableHead>
-                    <TableHead className="bg-gray-900 text-amber-50">
-                      FullName
-                    </TableHead>
-                    <TableHead className="bg-gray-900 text-amber-50">
-                      DeviceType
-                    </TableHead>
-                    <TableHead className="bg-gray-900 text-amber-50">
-                      Problem
-                    </TableHead>
-                    <TableHead className="bg-gray-900 text-amber-50">
-                      Mob
-                    </TableHead>
-                    <TableHead className="bg-gray-900 text-amber-50">
-                      Price
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sortedFilteredServices.map((filteredService) => (
-                     <TableRow
-                key={filteredService.id}
-                onDoubleClick={() => setOpenDialogRow(filteredService)}
-                className="cursor-pointer hover:bg-gray-800"
-              >
-                      
-                      <TableCell>
-                        {format(parseISO(filteredService.createdAt), "MMM dd, yyyy")}
-                      </TableCell>
-                      <TableCell>{filteredService.fullName}</TableCell>
-                      <TableCell>{filteredService.deviceType}</TableCell>
-                      <TableCell>{filteredService.problem}</TableCell>
-                      <TableCell>{filteredService.phoneNumber}</TableCell>
-                      <TableCell>{filteredService.price}</TableCell>
+                <Table>
+                  <TableHeader className="sticky top-0 z-10">
+                    <TableRow>
+                      <TableHead className="bg-gray-900 text-amber-50">
+                        Date
+                      </TableHead>
+                      <TableHead className="bg-gray-900 text-amber-50">
+                        FullName
+                      </TableHead>
+                      <TableHead className="bg-gray-900 text-amber-50">
+                        DeviceType
+                      </TableHead>
+                      <TableHead className="bg-gray-900 text-amber-50">
+                        Problem
+                      </TableHead>
+                      <TableHead className="bg-gray-900 text-amber-50">
+                        Mob
+                      </TableHead>
+                      <TableHead className="bg-gray-900 text-amber-50">
+                        Price
+                      </TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedFilteredServices.map((filteredService) => (
+                      <TableRow
+                        key={filteredService.id}
+                        onDoubleClick={() => setOpenDialogRow(filteredService)}
+                        className="cursor-pointer hover:bg-gray-800"
+                      >
+                        <TableCell>
+                          {format(
+                            parseISO(filteredService.createdAt),
+                            "MMM dd, yyyy",
+                          )}
+                        </TableCell>
+                        <TableCell>{filteredService.fullName}</TableCell>
+                        <TableCell>{filteredService.deviceType}</TableCell>
+                        <TableCell>{filteredService.problem}</TableCell>
+                        <TableCell>{filteredService.phoneNumber}</TableCell>
+                        <TableCell>{filteredService.price}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
 
-              <AlertDialog 
-        open={openDialogRow !== null} 
-        onOpenChange={(open) => !open && setOpenDialogRow(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {openDialogRow 
-                ? `This will affect ${openDialogRow.fullName}'s service record.` 
-                : ""}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setOpenDialogRow(null)}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction>Continue</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      </div>
+                <AlertDialog
+                  open={openDialogRow !== null}
+                  onOpenChange={(open) => !open && setOpenDialogRow(null)}
+                >
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogDescription>
+                        {openDialogRow
+                          ? `This will affect ${openDialogRow.fullName}'s service record.`
+                          : ""}
+                      </AlertDialogDescription>
+                      <div className="sm:col-span-2 sm:col-start-1">
+                        <div className="mt-2 flex gap-2">
+                          <div className="w-full">
+                            <label
+                              htmlFor="part1"
+                              className="block text-xs text-gray-600 mb-1"
+                            >
+                              Parts
+                            </label>
+                            <input
+                              id="part1"
+                              name="part1"
+                              type="number"
+                              value={price || ""}
+                              onChange={(e) => setPrice(e.target.value)}
+                              className="block w-full rounded-md bg-white/5 px-3 py-1.5 text-base text-black outline-1 -outline-offset-1 outline-gray/10 placeholder:text-gray-500 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm/6"
+                            />
+                          </div>
+
+                          <div className="w-full">
+                            <label
+                              htmlFor="part2"
+                              className="block text-xs text-gray-600 mb-1"
+                            >
+                              Parts Origin
+                            </label>
+                            <select
+                              id="deviceType"
+                              name="deviceType"
+                              value={deviceType} // Controlled component
+                              onChange={(e) => setDeviceType(e.target.value)}
+                              className="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white/5 py-1.5 pr-8 pl-3 text-base text-black outline-1 -outline-offset-1 outline-gray/10 *:bg-gray-800 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm/6"
+                            >
+                              <option value="Mob">Mega</option>
+                              <option value="Tablet">Akvarius</option>
+                              <option value="Laptop">Qamo</option>
+                              <option value="PC">Dugi</option>
+                              <option value="PC">Bekim</option>
+                              <option value="PC">Amaco</option>
+                              <option value="PC">Arti</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="mt-2 flex gap-2">
+                          <div className="w-full">
+                            <label
+                              htmlFor="part3"
+                              className="block text-xs text-gray-600 mb-1"
+                            >
+                              Is Ready
+                            </label>
+                              <select
+                              id="deviceType"
+                              name="deviceType"
+                              value={deviceType} // Controlled component
+                              onChange={(e) => setDeviceType(e.target.value)}
+                              className="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white/5 py-1.5 pr-8 pl-3 text-base text-black outline-1 -outline-offset-1 outline-gray/10 *:bg-gray-800 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm/6"
+                            >
+                              <option value="Mob">Yes</option>
+                              <option value="Tablet">No</option>
+                            </select>
+                          </div>
+
+                          <div className="w-full">
+                            <label
+                              htmlFor="part4"
+                              className="block text-xs text-gray-600 mb-1"
+                            >
+                              User
+                            </label>
+                             <select
+                              id="deviceType"
+                              name="deviceType"
+                              value={deviceType} // Controlled component
+                              onChange={(e) => setDeviceType(e.target.value)}
+                              className="col-start-1 row-start-1 w-full appearance-none rounded-md bg-white/5 py-1.5 pr-8 pl-3 text-base text-black outline-1 -outline-offset-1 outline-gray/10 *:bg-gray-800 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-500 sm:text-sm/6"
+                            >
+                              <option value="Mob">Tani</option>
+                              <option value="Tablet">Duli</option>
+                              <option value="Tablet">Jusuf</option>
+
+                              
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel onClick={() => setOpenDialogRow(null)}>
+                        Cancel
+                      </AlertDialogCancel>
+                      <AlertDialogAction>Continue</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             </div>
           </div>
         </div>
@@ -423,7 +517,7 @@ export default function MainPage() {
                     </TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
+                {/* <TableBody>
                   {services.map((service) => (
                     <TableRow
                       key={service.id}
@@ -446,7 +540,7 @@ export default function MainPage() {
                       <TableCell>IsReady</TableCell>
                     </TableRow>
                   ))}
-                </TableBody>
+                </TableBody> */}
               </Table>
             </div>
           </div>

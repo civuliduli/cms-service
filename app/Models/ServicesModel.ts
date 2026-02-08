@@ -4,7 +4,7 @@ interface ServicesModel {
   fullName: string;
   deviceType: string;
   problem: string;
-  phoneNumber: number
+  phoneNumber: string;
   price: number;
   isReady: boolean | null;
 }
